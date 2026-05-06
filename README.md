@@ -511,13 +511,13 @@ If setup is correct, you will see:
 
 
 <p align="center">
-  <a href="https://youtube.com/@Unknown_Reason">
+  <a href="https://youtube.com/@ssk-spidy-07">
     <img src="https://img.shields.io/badge/📺%20YouTube-SUBSCRIBE-FF0000?style=for-the-badge&logo=youtube">
   </a>
-  <a href="https://instagram.com/6_hf0">
+  <a href="https://instagram.com/r4yhn.exe">
     <img src="https://img.shields.io/badge/📸%20Instagram-FOLLOW-E4405F?style=for-the-badge&logo=instagram">
   </a>
-  <a href="https://t.me/Unknown_Reason">
+  <a href="https://t.me/Spidyisalive">
     <img src="https://img.shields.io/badge/💬%20Telegram-JOIN-0088cc?style=for-the-badge&logo=telegram">
   </a>
 </p>
