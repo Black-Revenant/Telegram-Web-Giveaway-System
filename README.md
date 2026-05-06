@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/STATUS-ACTIVE-00ff88?style=for-the-badge">
   <img src="https://img.shields.io/badge/VERSION-v1.0-blue?style=for-the-badge">
   <img src="https://img.shields.io/badge/API-SUPERFAST⚡-orange?style=for-the-badge">
-  <img src="https://img.shields.io/badge/MADE%20BY-YOU-red?style=for-the-badge">
+  <img src="https://img.shields.io/badge/MADE%20BY-r4yhn.exe-red?style=for-the-badge">
 </p>
 
 ---
