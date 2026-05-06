@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>WEB GIVEAWAY</title>
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <style>
+        /* STYLES */
+        :root { --primary: #00d2ff; --secondary: #9b59b6; --bg: #1e272e; --glass: rgba(255,255,255,0.1); }
+        body { margin: 0; padding: 0; background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); font-family: 'Segoe UI', sans-serif; color: #fff; overflow-x: hidden; }
+        #app { padding: 20px; padding-bottom: 80px; }
+        
+        .glass-card { background: var(--glass); backdrop-filter: blur(10px); border:1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        h1 { text-align: center; margin: 0; font-size: 1.8rem; text-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+        h3 { text-align: center; margin: 10px 0; }
+        
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 10px; background: linear-gradient(135deg, var(--secondary), var(--primary)); color: white; font-weight: bold; margin-top: 10px; cursor: pointer; }
+        .btn:active { transform: scale(0.98); }
+        .btn-admin { background: linear-gradient(135deg, #ff4757, #ff6b81); }
+        
+        .stat-row { display: flex; justify-content: space-between; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 8px; margin-top: 5px; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; border: 2px solid white; margin-right: 5px; margin-bottom:5px; }
+        
+        /* Overlay */
+        #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 100; display: none; flex-direction: column; align-items: center; justify-content: center; }
+        #overlay.active { display: flex; }
+    </style>
+</head>
+<body>
+
+    <div id="app">
+        <h1>WEB GIVEAWAY</h1>
+        
+        <div class="glass-card">
+            <div style="text-align: center;">
+                <img id="user-dp" src="" style="width: 70px; height: 70px; border-radius: 50%; border: 2px solid var(--primary);">
+                <h3 id="user-name">Loading...</h3>
+                <p id="user-id" style="opacity: 0.7;">ID: ---</p>
+            </div>
+        </div>
+
+        <div class="glass-card">
+            <div class="stat-row"><span>Status:</span><span id="status-text" style="font-weight: bold;">---</span></div>
+            <div class="stat-row"><span>Prize:</span><span id="prize-text">---</span></div>
+            <div class="stat-row"><span>Ends In:</span><span id="timer-text" style="font-family: monospace;">--:--</span></div>
+            <div class="stat-row"><span>Joined:</span><span id="joined-count">0</span></div>
+
+            <button id="join-btn" class="btn" onclick="joinGiveaway()">JOIN THE DRAW</button>
+            <p id="msg-box" style="text-align: center; margin-top: 5px;"></p>
+        </div>
+
+        <div class="glass-card">
+            <h3>Participants</h3>
+            <div id="participants-list" style="display: flex; flex-wrap: wrap;"></div>
+        </div>
+
+        <div class="glass-card" id="admin-panel" style="display: none; border: 1px solid #ff4757;">
+            <h3 style="color: #ff4757;">ADMIN PANEL</h3>
+            <!-- Input type number removed 'max' attribute to fix 60min limit -->
+            <input type="text" id="adm-prize-text" placeholder="Prize Name" style="width: 100%; padding: 10px; border-radius: 5px; border: none; margin-bottom: 5px;">
+            <input type="number" id="adm-time" placeholder="Minutes" style="width: 100%; padding: 10px; border-radius: 5px; border: none; margin-bottom: 5px;">
+            
+            <button class="btn btn-admin" onclick="startGA()">Start Giveaway</button>
+            <button class="btn btn-admin" style="background: #f39c12;" onclick="stopGA()">Stop & Pick</button>
+            <button class="btn btn-admin" onclick="rerollGA()">Re-Roll</button>
+        </div>
+    </div>
+
+    <!-- Winner Overlay -->
+    <div id="overlay">
+        <h2 style="color: gold;">WINNER</h2>
+        <img id="win-dp" src="" style="width: 100px; height: 100px; border-radius: 50%; border: 4px solid gold; margin: 20px 0;">
+        <h3 id="win-name">Name</h3>
+        <p id="win-id">ID: 123</p>
+        <button class="btn" onclick="document.getElementById('overlay').classList.remove('active')" style="width: auto; padding: 10px 30px;">CLOSE</button>
+    </div>
+
+    <script>
+        // 1. SETUP
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        const user = tg.initDataUnsafe.user || {};
+        const userId = user.id || 0;
+        const userName = (user.first_name || 'User') + " " + (user.last_name || '');
+        const userPic = user.photo_url ? user.photo_url : 'https://ui-avatars.com/api/?name=' + userName + '&background=random';
+        const ADMIN_ID = PASTE_YOUR_TG_ID; //here Paste your Telegram id 12345678
+
+        document.getElementById('user-name').innerText = userName;
+        document.getElementById('user-id').innerText = 'ID: ' + userId;
+        document.getElementById('user-dp').src = userPic;
+
+        if (userId === ADMIN_ID) {
+            document.getElementById('admin-panel').style.display = 'block';
+        }
+
+        // 2. API
+        async function api(action, data = {}) {
+            data.user_id = userId;
+            data.name = userName;
+            data.photo_url = userPic;
+            try {
+                const res = await fetch('api.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({...data, action})
+                });
+                return await res.json();
+            } catch (e) {
+                return {status: 'error', message: 'Connection Error'};
+            }
+        }
+
+        async function loadData() {
+            const res = await api('get_data');
+            const statusEl = document.getElementById('status-text');
+            const btn = document.getElementById('join-btn');
+            
+            if (res.status === 'active') {
+                statusEl.innerText = 'LIVE';
+                statusEl.style.color = '#2ecc71';
+                btn.disabled = false;
+                btn.innerText = 'JOIN THE DRAW';
+                document.getElementById('prize-text').innerText = res.prize || '???';
+                startTimer(res.end_time);
+            } else {
+                statusEl.innerText = 'ENDED';
+                statusEl.style.color = '#ff4757';
+                btn.disabled = true;
+                btn.innerText = 'CLOSED';
+                document.getElementById('timer-text').innerText = 'ENDED';
+            }
+
+            // Participants
+            const list = document.getElementById('participants-list');
+            list.innerHTML = '';
+            if(res.participants && res.participants.length > 0) {
+                res.participants.forEach(p => {
+                    const img = document.createElement('img');
+                    img.src = p.photo_url || 'https://ui-avatars.com/api/?name=' + p.name;
+                    img.className = 'avatar';
+                    list.appendChild(img);
+                });
+            }
+            document.getElementById('joined-count').innerText = res.participant_count || 0;
+        }
+
+        async function joinGiveaway() {
+            const btn = document.getElementById('join-btn');
+            btn.innerText = 'Joining...';
+            const res = await api('auto-join');
+            const msg = document.getElementById('msg-box');
+            msg.innerText = res.message;
+            msg.style.color = res.status === 'success' ? '#2ecc71' : '#ff4757';
+
+            if (res.status === 'success') {
+                btn.innerText = 'JOINED';
+                btn.disabled = true;
+                loadData();
+            } else {
+                btn.innerText = 'JOIN THE DRAW';
+            }
+        }
+
+        // 3. TIMER LOGIC (FIXED)
+        function startTimer(endTimeStr) {
+            if (!endTimeStr) return;
+            const el = document.getElementById('timer-text');
+            if (window.timerInt) clearInterval(window.timerInt);
+
+            window.timerInt = setInterval(() => {
+                const now = new Date().getTime();
+                // Fix for Safari/Mobile date parsing
+                const end = new Date(endTimeStr.replace(/-/g, "/")).getTime();
+                const diff = end - now;
+
+                if (diff < 0) {
+                    clearInterval(window.timerInt);
+                    el.innerText = 'ENDED';
+                    el.style.color = '#ff4757';
+                    return;
+                }
+                
+                // Calculate days, hours, minutes, seconds
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+                let timeStr = "";
+                if (days > 0) timeStr += days + "d ";
+                if (hours > 0) timeStr += hours + "h ";
+                timeStr += minutes + "m " + seconds + "s";
+                
+                el.innerText = timeStr;
+                el.style.color = '#fff';
+            }, 1000);
+        }
+
+        // 4. ADMIN ACTIONS
+        async function startGA() {
+            // Fix ID mismatch: Corrected input IDs
+            const p = document.getElementById('adm-prize-text').value;
+            const t = document.getElementById('adm-time').value;
+            if(!p || !t) return alert('Fill details');
+            
+            const res = await api('start_giveaway', {prize: p, duration: t});
+            alert(res.message);
+            if(res.status === 'success') loadData();
+        }
+
+        async function stopGA() {
+            if(!confirm('Stop & Pick Winner?')) return;
+            const res = await api('stop_giveaway');
+            if(res.status === 'success') {
+                const overlay = document.getElementById('overlay');
+                overlay.classList.add('active');
+                document.getElementById('win-id').innerText = 'ID: ' + res.winner_id;
+                document.getElementById('win-name').innerText = res.winner_name || 'Winner';
+                document.getElementById('win-dp').src = 'https://ui-avatars.com/api/?name=' + (res.winner_name||'Winner');
+            } else {
+                alert(res.message);
+            }
+        }
+
+        async function rerollGA() {
+            if(!confirm('Re-roll?')) return;
+            const res = await api('reroll');
+            if(res.status === 'success') {
+                const overlay = document.getElementById('overlay');
+                overlay.classList.add('active');
+                document.getElementById('win-id').innerText = 'ID: ' + res.winner_id;
+                document.getElementById('win-name').innerText = 'Winner';
+                document.getElementById('win-dp').src = 'https://ui-avatars.com/api/?name=Winner';
+            } else {
+                alert(res.message);
+            }
+        }
+
+        // 5. 3D BACKGROUND
+        function init3D() {
+            const container = document.createElement('div');
+            container.style.position = 'fixed'; container.style.top = '0'; container.style.left = '0';
+            container.style.width = '100%'; container.style.height = '100%';
+            container.style.zIndex = '-1';
+            document.body.appendChild(container);
+
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({alpha: true});
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+
+            const geometry = new THREE.BufferGeometry();
+            const cnt = 600;
+            const posArray = new Float32Array(cnt * 3);
+            for(let i=0; i<cnt*3; i++) posArray[i] = (Math.random() - 0.5) * 15;
+            
+            geometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+            const material = new THREE.PointsMaterial({ size: 0.05, color: 0x00d2ff });
+            const mesh = new THREE.Points(geometry, material);
+            scene.add(mesh);
+            camera.position.z = 4;
+
+            function animate() {
+                requestAnimationFrame(animate);
+                mesh.rotation.y += 0.002;
+                renderer.render(scene, camera);
+            }
+            animate();
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        // INIT
+        init3D();
+        loadData();
+        setInterval(loadData, 5000);
+
+    </script>
+</body>
+</html>
