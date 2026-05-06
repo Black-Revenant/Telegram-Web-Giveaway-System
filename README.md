@@ -565,6 +565,9 @@ If setup is correct, you will see:
   🚀 Wishing you success in your projects <br>
   💡 Keep learning & building <br>
   🔥 Turn your ideas into reality <br>
+  
+  <img src="https://img.shields.io/badge/🤝_Credits:-ashishyadav210-ff4444?style=for-the-badge">
+  </a>
 </p>
 
 <br>
